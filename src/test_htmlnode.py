@@ -1,6 +1,6 @@
 import unittest
 
-from htmlnode import HTMLNode, LeafNode
+from htmlnode import HTMLNode, LeafNode, ParentNode
 
 
 class TestHTMLNode(unittest.TestCase):
@@ -67,6 +67,44 @@ class TestHTMLNode(unittest.TestCase):
             leafnode = LeafNode("p")
             html_str = leafnode.to_html()
         self.assertEqual(str(context.exception), "LeafNode must have value")
+
+    def test_to_html_with_children(self):
+        child_node = LeafNode("span", "child")
+        parent_node = ParentNode("div", [child_node])
+        self.assertEqual(parent_node.to_html(), "<div><span>child</span></div>")
+
+    def test_to_html_with_grandchildren(self):
+        grandchild_node = LeafNode("b", "grandchild")
+        child_node = ParentNode("span", [grandchild_node])
+        parent_node = ParentNode("div", [child_node])
+        self.assertEqual(
+            parent_node.to_html(),
+            "<div><span><b>grandchild</b></span></div>",
+        )
+
+    def test_to_html_with_grandchildren_props(self):
+        grandchild_node = LeafNode(
+            "a", "grandchild", props={"href": "https://www.google.com"}
+        )
+        child_node = ParentNode("span", [grandchild_node])
+        parent_node = ParentNode("div", [child_node])
+        self.assertEqual(
+            parent_node.to_html(),
+            '<div><span><a href="https://www.google.com">grandchild</a></span></div>',
+        )
+
+    def test_parent_no_tag(self):
+        with self.assertRaises(ValueError) as context:
+            child_node = LeafNode("span", "child")
+            parent_node = ParentNode(children=[child_node])
+            html_str = parent_node.to_html()
+        self.assertEqual(str(context.exception), "ParentNode must have a tag")
+
+    def test_parent_no_children(self):
+        with self.assertRaises(ValueError) as context:
+            parent_node = ParentNode("b")
+            html_str = parent_node.to_html()
+        self.assertEqual(str(context.exception), "ParentNode must have children")
 
 
 if __name__ == "__main__":
