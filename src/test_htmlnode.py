@@ -1,6 +1,7 @@
 import unittest
 
 from htmlnode import HTMLNode, LeafNode, ParentNode
+from texthelpers import markdown_to_html_node
 
 
 class TestHTMLNode(unittest.TestCase):
@@ -105,6 +106,87 @@ class TestHTMLNode(unittest.TestCase):
             parent_node = ParentNode("b")
             html_str = parent_node.to_html()
         self.assertEqual(str(context.exception), "ParentNode must have children")
+
+        def test_paragraphs(self):
+            md = """
+    This is **bolded** paragraph
+    text in a p
+    tag here
+
+    This is another paragraph with _italic_ text and `code` here
+
+    """
+
+            node = markdown_to_html_node(md)
+            html = node.to_html()
+            print(html)
+            self.assertEqual(
+                html,
+                "<div><p>This is <b>bolded</b> paragraph text in a p tag here</p><p>This is another paragraph with <i>italic</i> text and <code>code</code> here</p></div>",
+            )
+
+        def test_codeblock(self):
+            md = """
+    ```
+    This is text that _should_ remain
+    the **same** even with inline stuff
+    ```
+    """
+
+            node = markdown_to_html_node(md)
+            html = node.to_html()
+            self.assertEqual(
+                html,
+                "<div><pre><code>This is text that _should_ remain\nthe **same** even with inline stuff\n</code></pre></div>",
+            )
+
+    def test_quoteblock(self):
+        md = """
+This is a **regular** paragraph
+
+> this _is_ a
+> quoted
+> block
+"""
+
+        node = markdown_to_html_node(md)
+        html = node.to_html()
+        self.assertEqual(
+            html,
+            r"<div><p>This is a <b>regular</b> paragraph</p><blockquote><p>this <i>is</i> a</p><p>quoted</p><p>block</p></blockquote></div>",
+        )
+
+    def test_unordered_list(self):
+        md = """
+This is a **regular** paragraph
+
+- this **is**
+- an `unordered`
+- _list_
+"""
+
+        node = markdown_to_html_node(md)
+        html = node.to_html()
+        self.assertEqual(
+            html,
+            r"<div><p>This is a <b>regular</b> paragraph</p><ul><li>this <b>is</b></li><li>an <code>unordered</code></li><li><i>list</i></li></ul></div>",
+        )
+
+    def test_ordered_list(self):
+        md = """
+This is a **regular** paragraph
+
+1. this **is**
+2. an `ordered`
+3. _list_
+"""
+
+        node = markdown_to_html_node(md)
+        html = node.to_html()
+        self.assertEqual(
+            html,
+            r"<div><p>This is a <b>regular</b> paragraph</p><ol><li>this <b>is</b></li><li>an <code>ordered</code></li><li><i>list</i></li></ol></div>",
+        )
 
 
 if __name__ == "__main__":

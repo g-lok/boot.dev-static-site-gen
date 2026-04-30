@@ -1,5 +1,8 @@
+from htmlnode import HTMLNode, LeafNode, ParentNode
 from textnode import TextType, BlockType, TextNode
 import re
+
+import textnode
 
 
 def extract_markdown_images(text):
@@ -88,7 +91,7 @@ def split_nodes_delimiter(old_nodes):
 
         open_block = None
         block_text = ""
-        for i, part in enumerate(result):
+        for part in result:
             if part not in delimiters and open_block is None:
                 node = TextNode(part, TextType.TEXT)
                 new_nodes.append(node)
@@ -139,14 +142,14 @@ def text_to_textnodes(text):
 
 
 def markdown_to_blocks(markdown):
-    split = [block.strip() for block in markdown.split("\n\n") if block]
+    split = [block.strip() for block in markdown.split("\n\n") if block.strip()]
     return split
 
 
 def block_to_block_type(block):
     block_patterns = {
         r"(^\#{1,6} {1}.*)": BlockType.HEADING,
-        r"(^`{3}\n.*\n`{3})": BlockType.CODE,
+        r"(^`{3}\n[\s\S]*?\n`{3}$)": BlockType.CODE,
         r"(^\>.*)": BlockType.QUOTE,
         r"(^- {1}.*)": BlockType.UNORDERED_LIST,
         r"(^\d+. {1}.*)": BlockType.ORDERED_LIST,
@@ -189,3 +192,99 @@ def block_to_block_type(block):
                 return btype
 
     return BlockType.PARAGRAPH
+
+
+def text_to_children(tag, text):
+    textnodes = text_to_textnodes(text)
+    htmlnodes = []
+    for node in textnodes:
+        htmlnodes.append(node.to_html_node())
+    return ParentNode(tag, children=htmlnodes)
+
+
+def block_header_to_html_node(block):
+    # might need to parse other inline markdown
+    pattern = r"(^\#{1,6}) (.*$)"
+    matches = re.findall(pattern, block)
+    h_num = f"h{len(matches[0])}"
+    text = matches[1]
+    return text_to_children(h_num, text)
+
+
+def block_code_to_html_node(block):
+    pattern = r"(^`{3}\n)([\s\S\n]*)(`{3}$)"
+    matches = re.findall(pattern, block)
+    text = matches[0][1]
+    return ParentNode("pre", [LeafNode("code", text)])
+
+
+def block_quote_to_html_node(block):
+    lines = block.split("\n")
+    children = []
+    for line in lines:
+        stripped = line.strip("> ").strip(">")
+        children.append(text_to_children("p", stripped))
+    return ParentNode("blockquote", children)
+
+
+def block_uord_list_to_html_node(block):
+    children = []
+    pattern = r"(^- {1})(.*)"
+    lines = block.split("\n")
+    for line in lines:
+        if not line:
+            continue
+        matches = re.findall(pattern, line)
+        text = matches[0][1]
+        line_nodes = text_to_children("li", text)
+        children.append(line_nodes)
+    return ParentNode("ul", children=children)
+
+
+def block_ord_list_to_html_node(block):
+    children = []
+    pattern = r"(^\d+. {1})(.*)"
+    lines = block.split("\n")
+    for line in lines:
+        if not line:
+            continue
+        matches = re.findall(pattern, line)
+        text = matches[0][1]
+        line_nodes = text_to_children("li", text)
+        children.append(line_nodes)
+    return ParentNode("ol", children=children)
+
+
+def block_paragraph_to_html_node(block):
+    children = []
+    lines = block.split("\n")
+    for line in lines:
+        if not line:
+            continue
+        children.append(text_to_children("p", line.strip()))
+    return ParentNode("p", children=children)
+
+
+def markdown_to_html_node(md):
+    children = []
+    blocks = markdown_to_blocks(md)
+    blocks_types = [(block, block_to_block_type(block)) for block in blocks]
+    for block, btype in blocks_types:
+        match btype:
+            case BlockType.HEADING:
+                children.append(block_header_to_html_node(block))
+            case BlockType.CODE:
+                children.append(block_code_to_html_node(block))
+            case BlockType.QUOTE:
+                children.append(block_quote_to_html_node(block))
+            case BlockType.UNORDERED_LIST:
+                children.append(block_uord_list_to_html_node(block))
+            case BlockType.ORDERED_LIST:
+                children.append(block_ord_list_to_html_node(block))
+            case BlockType.PARAGRAPH:
+                children.append(
+                    text_to_children(
+                        "p", " ".join(block.strip().replace("\n", " ").split())
+                    )
+                )
+    return ParentNode("div", children=children)

@@ -9,10 +9,14 @@ from texthelpers import (
     split_nodes_link,
     text_to_textnodes,
     markdown_to_blocks,
+    block_to_block_type,
 )
 
 
 class TestTextNode(unittest.TestCase):
+    def test_nothing(self):
+        pass
+
     def test_eq(self):
         node = TextNode("This is a text node", TextType.BOLD)
         node2 = TextNode("This is a text node", TextType.BOLD)
@@ -290,7 +294,7 @@ paragraph
         blocks = markdown_to_blocks(md)
         btypes = []
         for block in blocks:
-            btypes.append(markdown_to_blocks(block))
+            btypes.append(block_to_block_type(block))
         self.assertEqual(
             btypes,
             [
@@ -302,6 +306,89 @@ paragraph
                 BlockType.ORDERED_LIST,
                 BlockType.PARAGRAPH,
             ],
+        )
+
+    def test_md_to_block_invalid_quote(self):
+        md = """
+# test invalid quotes
+
+> this
+>is not
+valid quote
+
+> this is a valid
+"""
+        blocks = markdown_to_blocks(md)
+        btypes = []
+        with self.assertRaises(ValueError) as context:
+            for block in blocks:
+                btypes.append(block_to_block_type(block))
+        self.assertEqual(
+            str(context.exception), "All lines in quote block must start with '>'"
+        )
+
+    def test_md_to_block_invalid_uord_list(self):
+        md = """
+# test invalid unordered list
+
+- this
+-is not valid list
+
+- this is a valid
+- list
+"""
+        blocks = markdown_to_blocks(md)
+        btypes = []
+        with self.assertRaises(ValueError) as context:
+            for block in blocks:
+                btypes.append(block_to_block_type(block))
+        self.assertEqual(
+            str(context.exception),
+            "All lines in an unordered list block must start with '- '",
+        )
+
+    def test_md_to_block_invalid_ord_list_fmt(self):
+        md = """
+# test invalid ordered list
+
+1. this
+2. is not valid
+e. ordered
+5. list
+
+1. this is a valid
+2. list
+"""
+        blocks = markdown_to_blocks(md)
+        btypes = []
+        with self.assertRaises(ValueError) as context:
+            for block in blocks:
+                btypes.append(block_to_block_type(block))
+        self.assertEqual(
+            str(context.exception),
+            "All lines in ordered list block must begin with '[int]. ",
+        )
+
+    def test_md_to_block_invalid_ord_list_order(self):
+        md = """
+# test invalid ordered list
+
+1. this
+2. is not valid
+3. ordered
+5. list
+
+1. this is a valid
+2. list
+"""
+        blocks = markdown_to_blocks(md)
+        btypes = []
+        with self.assertRaises(ValueError) as context:
+            for block in blocks:
+                btypes.append(block_to_block_type(block))
+        self.assertEqual(
+            str(context.exception),
+            "Line numbers in ordered list must be sequential",
         )
 
 
