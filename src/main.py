@@ -1,6 +1,7 @@
 import re
 import os
 import shutil
+import sys
 
 import jinja2
 
@@ -13,7 +14,7 @@ def get_static_public_abs_path():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     print(script_dir)
     content_dirs["static"] = os.path.join(script_dir, "..", "static/")
-    content_dirs["public"] = os.path.join(script_dir, "..", "public/")
+    content_dirs["public"] = os.path.join(script_dir, "..", "docs/")
     content_dirs["content"] = os.path.join(script_dir, "..", "content/")
     content_dirs["template"] = os.path.join(script_dir, "..", "template.html")
     return content_dirs
@@ -63,7 +64,7 @@ def extract_title(markdown):
     raise ValueError("No h1 header found in markdown")
 
 
-def generate_page(from_path, template_path, dest_path):
+def generate_page(from_path, template_path, dest_path, basepath):
     print(
         f"Generating page from {from_path} to {dest_path} using template {template_path}"
     )
@@ -80,6 +81,9 @@ def generate_page(from_path, template_path, dest_path):
     environment = jinja2.Environment()
     template = environment.from_string(template)
     rendered = template.render(Title=title, Content=html)
+    rendered = rendered.replace('href="/', f'href="{basepath}').replace(
+        'src="/', f'src="{basepath}'
+    )
 
     dir_path = os.path.dirname(dest_path)
     os.makedirs(dir_path, exist_ok=True)
@@ -90,7 +94,7 @@ def generate_page(from_path, template_path, dest_path):
     print("Page generated")
 
 
-def generate_pages_recursive(content_dir, template_path, public_dir):
+def generate_pages_recursive(content_dir, template_path, public_dir, basepath):
     for root, dirs, files in os.walk(content_dir):
         # Calculate the relative path to maintain structure
         relative_path = os.path.relpath(root, content_dir)
@@ -103,10 +107,15 @@ def generate_pages_recursive(content_dir, template_path, public_dir):
         for file in files:
             content_dir_file = os.path.join(root, file)
             public_dir_file = os.path.join(target_dir, file.replace(".md", ".html"))
-            generate_page(content_dir_file, template_path, public_dir_file)
+            generate_page(content_dir_file, template_path, public_dir_file, basepath)
 
 
 def main():
+    try:
+        basepath = sys.argv[1]
+    except:
+        basepath = "/"
+
     content_dirs = get_static_public_abs_path()
     deleted = clear_public_dir(content_dirs["public"])
     print("Deleted: ", deleted)
@@ -115,7 +124,10 @@ def main():
     # indexmd = os.path.join(content_dirs["content"], "index.md")
     # indexhtml = os.path.join(content_dirs["public"], "index.html")
     generate_pages_recursive(
-        content_dirs["content"], content_dirs["template"], content_dirs["public"]
+        content_dirs["content"],
+        content_dirs["template"],
+        content_dirs["public"],
+        basepath,
     )
 
 
