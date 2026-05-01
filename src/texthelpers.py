@@ -206,8 +206,8 @@ def block_header_to_html_node(block):
     # might need to parse other inline markdown
     pattern = r"(^\#{1,6}) (.*$)"
     matches = re.findall(pattern, block)
-    h_num = f"h{len(matches[0])}"
-    text = matches[1]
+    h_num = f"h{len(matches[0][0])}"
+    text = matches[0][1]
     return text_to_children(h_num, text)
 
 
@@ -223,7 +223,9 @@ def block_quote_to_html_node(block):
     children = []
     for line in lines:
         stripped = line.strip("> ").strip(">")
-        children.append(text_to_children("p", stripped))
+        textnodes = text_to_textnodes(stripped)
+        for node in textnodes:
+            children.append(node.to_html_node())
     return ParentNode("blockquote", children)
 
 
