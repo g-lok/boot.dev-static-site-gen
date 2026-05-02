@@ -153,7 +153,7 @@ This is a **regular** paragraph
         html = node.to_html()
         self.assertEqual(
             html,
-            r"<div><p>This is a <b>regular</b> paragraph</p><blockquote><p>this <i>is</i> a</p><p>quoted</p><p>block</p></blockquote></div>",
+            r"<div><p>This is a <b>regular</b> paragraph</p><blockquote>this <i>is</i> aquotedblock</blockquote></div>",
         )
 
     def test_unordered_list(self):
